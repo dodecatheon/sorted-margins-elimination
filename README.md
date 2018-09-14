@@ -15,14 +15,17 @@ https://electowiki.miraheze.org/wiki/Marginal_Ranked_Approval_Voting
 https://wiki.electorama.com/wiki/Marginal_Ranked_Approval_Voting
 
 Chris Benham chose a different metric for the seed sort, Minimum Losing Vote
-(AKA MinLV), with equal-rated non-zero ratings scored as whole votes for each
+(AKA MinLV), with equal-rated above-bottom ratings scored as whole votes for each
 candidate in the pairwise match-up.
 
 http://lists.electorama.com/pipermail/election-methods-electorama.com/2016-October/000599.html
 
-Benham claims
+Benham originally claimed
 
 > This meets Smith, Plurality, Mono-raise, Mono-switch-plump, Non-drastic Defense.
+
+but has since dropped the claim of Mono-switch-plump, as it appears to be
+incompatible with the Condorcet criterion.
 
 Since the minimum Losing Votes metric can change, depending on what candidates
 are included, Benham also introduced a step to eliminate the lowest rated

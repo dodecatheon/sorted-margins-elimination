@@ -10,7 +10,31 @@ import csv
 from pprint import pprint
 from csvtoballots import csvtoballots
 
-def sme_minlv(A,cands,cnames=[]):
+__doc__ = """\
+smeminlv --
+Sorted Margins Elimination, Minimum Losing Votes (equal-rated whole) --
+Returns ordered ranking with Condorcet (beats-all) winner as 0-th entry if one exists.
+"""
+
+def pairwise_erw(ballots, weight):
+    # Important: Tied votes above the minimum ballot score are counted
+    # as whole votes for and against (Equal-Rated Whole = ERW). Note
+    # that the pairwise array's resulting diagonal is effectively the
+    # total approval score for each candidate
+
+    numballots, numcands = np.shape(ballots)
+    maxscore = ballots.max()
+    totalweight = weight.sum()
+    A = np.zeros((numcands,numcands))
+    maxscorep1 = maxscore + 1
+    for ballot, w in zip(ballots,weight):
+        vmin = int(ballot.min() + 1.5)
+        for v in range(vmin,maxscorep1):
+            A += np.multiply.outer(np.where(ballot==v,w,0),
+                                   np.where(ballot<=v,1,0))
+    return(totalweight,numcands,A)
+
+def sme_minlv(ballots, weight, cands,cnames=[]):
     "Sorted Margins Elimination, MinLV (erw)"
     # erw = equal rated whole:
     # tied approval votes are counted as equal votes for each candidate
@@ -24,20 +48,17 @@ def sme_minlv(A,cands,cnames=[]):
     if ncands == 1:
         return(cands)
 
+    totalweight, numcands, AA = pairwise_erw(ballots[:,cands],weight)
+
     if ncands == 2:
-        a, b = cands
         # Ties preserve input order
-        if A[b][a] > A[a][b]:
+        if AA[1,0] > AA[0,1]:
             return(cands[::-1])
         else:
             return(cands)
 
-    # AA == pairwise sub-array, permuted by candidate input order
-    AA = A[np.ix_(cands,cands)]
-
     # track the losing votes locations
     losing_votes = np.where(AA.T > AA, AA, 0)
-    # winning_votes = np.where(AA.T < AA, AA, 0)
     tied_votes = np.where(AA.T == AA, AA, 0)
     wintie_votes = np.where(AA.T <= AA, AA, 0)
     np.fill_diagonal(tied_votes,0)
@@ -57,7 +78,7 @@ def sme_minlv(A,cands,cnames=[]):
          rowTV,
          rowWT,
          rowAA) in zip(cands,
-                       losing_votes, # winning_votes,
+                       losing_votes,
                        tied_votes,
                        wintie_votes,
                        AA):
@@ -70,7 +91,7 @@ def sme_minlv(A,cands,cnames=[]):
             if verbose:
                 print("Candidate {} is defeated by all other candidates".format(cnames[c]),
                       [cnames[q] for q in cands_minus_c])
-            return(np.concatenate((sme_minlv(A,cands_minus_c,cnames), cc)))
+            return(np.concatenate((sme_minlv(ballots, weight, cands_minus_c, cnames), cc)))
 
         if np.count_nonzero(rowLV) > 0:
             scorelist.append(np.compress(rowLV>0,rowLV).min())
@@ -81,7 +102,7 @@ def sme_minlv(A,cands,cnames=[]):
                     print("Candidate {} defeats all candidates".format(cnames[c]),
                           [cnames[q] for q in cands_minus_c])
                 # Shortcut return
-                return(np.concatenate((cc, sme_minlv(A,cands_minus_c,cnames))))
+                return(np.concatenate((cc, sme_minlv(ballots, weight, cands_minus_c, cnames))))
                 # Try to continue with winning votes
                 # scorelist.append(np.compress(rowWV>0,rowWV).min())
             else:
@@ -111,7 +132,7 @@ def sme_minlv(A,cands,cnames=[]):
             im1 = i - 1
             c_i = arglvsort[i]
             c_im1 = arglvsort[i-1]
-            if AA[c_i][c_im1] > AA[c_im1][c_i]:
+            if AA[c_i,c_im1] > AA[c_im1,c_i]:
                 outoforder.append(i-1)
                 lvdiff.append(lvsort[im1] - lvsort[i])
 
@@ -124,8 +145,7 @@ def sme_minlv(A,cands,cnames=[]):
                                     key=lvdiff.__getitem__)[0]]
 
         if verbose:
-            print("Minimum MinLV pairwise out-of-order difference at position",mindiff+1)
-            print("Swapping pairwise out-of-order candidates {} and {}".format(cnames[cands[arglvsort[mindiff]]],
+            print("Swapping candidates {} and {} at location of minimum MinLV pairwise out-of-order difference".format(cnames[cands[arglvsort[mindiff]]],
                                                                       cnames[cands[arglvsort[mindiff+1]]]))
 
         # ... and swap their order
@@ -143,41 +163,31 @@ def sme_minlv(A,cands,cnames=[]):
         print("Eliminating lowest-ordered candidate {}".format(cnames[cands[arglvsort[-1]]]))
         print("Running sme_minlv on candidates", [cnames[q] for q in cands[arglvsort[:-1]]])
 
-    return(np.concatenate((sme_minlv(A,
+    return(np.concatenate((sme_minlv(ballots,
+                                     weight,
                                      cands[arglvsort[:-1]],
                                      cnames),
                            cands[[arglvsort[-1]]])))
 
 def test_sme(ballots,weight,cnames):
-    [m,n] = np.shape(ballots)
-    maxscore = ballots.max()
-    A = np.zeros((n,n))
-
-    # Important:  Tied votes above zero are counted as whole votes for and against
-    # (Equal-Rated Whole = ERW)
-    for ballot, w in zip(ballots,weight):
-        for k in range(maxscore):
-            # v ranges from maxscore down to 1
-            v = maxscore - k
-            WW = w * np.multiply.outer(np.where(ballot==v,1,0),
-                                       np.where(ballot<=v,1,0))
-            A += WW
-
-    # Note that A's diagonal is effectively the total approval score for each candi
-    cands = np.arange(n)
-    winsort = sme_minlv(A,cands,cnames)
+    numcands = np.shape(ballots)[1]
+    cands = np.arange(numcands)
+    winsort = sme_minlv(ballots,weight,cands,cnames)
     print("SME_MinLV ranking = ",
-          ",".join([cnames[winsort[k]] for k in range(n)]))
+          ",".join([cnames[winsort[k]] for k in range(numcands)]))
 
-if __name__ == "__main__":
-    import sys
+def main():
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__)
 
-    if (len(sys.argv) == 2):
-        fname = sys.argv[1]
-    else:
-        fname = input("Enter csv filename: ")
+    parser.add_argument("-i", "--inputfile",
+                        type=str,
+                        required=True,
+                        help="REQUIRED: CSV Input file [default: none]")
 
-    ballots, weight, cnames = csvtoballots(fname)
+    args = parser.parse_args()
+
+    ballots, weight, cnames = csvtoballots(args.inputfile)
 
     # Figure out the width of the weight field, use it to create the format
     ff = '{{:{}d}}:'.format(int(log10(weight.max())) + 1)
@@ -187,3 +197,6 @@ if __name__ == "__main__":
         print(ff.format(w),ballot)
 
     test_sme(ballots,weight,cnames)
+
+if __name__ == "__main__":
+    main()

@@ -36,31 +36,20 @@ def qrarv(ballots, weights, cnames, numseats, quotafunction):
 
     winners = []
 
+    maxscorep1 = maxscore + 1
+
     for seat in range(numseats):
 
-        scoretotals = np.zeros((maxscore+1,numcands))
-
-        A = np.zeros((numcands,numcands))
+        scoretotals = np.zeros((maxscorep1,numcands))
 
         # Calculate the pairwise array based on current weights
         for ballot, w in zip(ballots,weights):
-
-            scoretotals[0] += np.where(ballot==0,w,0)
-
-            for k in range(maxscore):
-                # v ranges from maxscore down to 1
-                v = maxscore - k
-                wtotals = np.where(ballot==v,w,0)
-                scoretotals[v] += wtotals
-                A += np.multiply.outer(wtotals,
-                                       np.where(ballot<=v,1,0))
-
+            for v in range(maxscorep1):
+                scoretotals[v] += np.where(ballot==v,w,0)
 
         # Determine the seat winner using sorted margins elimination:
-        winsort = sme_minlv(A,cands)
-
         # Seat the winner, then eliminate from candidates for next count
-        winner = winsort[0]
+        winner = sme_minlv(ballots,weights,cands)[0]
         winners += [winner]
         cands = np.compress(cands != winner,cands)
 
@@ -71,11 +60,11 @@ def qrarv(ballots, weights, cnames, numseats, quotafunction):
             # find the score at which the winning candidate for this seat has
             # approval of at least a quota
             winsum = 0
-            for k in range(maxscore):
-                v = maxscore - k
-                winsum += scoretotals[v][winner]
+            for k in reversed(range(maxscorep1)):
+                winsum += scoretotals[k][winner]
                 if winsum > quota:
-                   break
+                    v = k
+                    break
 
             if winsum >= quota:
                 factor = (1.0 - (quota/winsum))
