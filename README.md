@@ -7,8 +7,11 @@ Approval Sorted Margins was introduced by Forest Simmons as a symmetric
 modification to Definitive Majority Choice (AKA Ranked Approval Voting).
 
 https://electowiki.miraheze.org/wiki/Approval_Sorted_Margins
+
 https://wiki.electorama.com/wiki/Approval_Sorted_Margins
+
 https://electowiki.miraheze.org/wiki/Marginal_Ranked_Approval_Voting
+
 https://wiki.electorama.com/wiki/Marginal_Ranked_Approval_Voting
 
 Chris Benham chose a different metric for the seed sort, Minimum Losing Vote
@@ -36,3 +39,9 @@ attempts to win by burying a more popular similar candidate will fail.
 Interestingly, this resistancy to burying/chicken dilemma strategizing reduces
 the likelihood of a Favorite Betrayal Criterion failure.  Such failures can be
 defeated by raising a lower-rated compromise candidate to equal top rank.
+
+`smeminlv.py` can be used to run a single winner election.
+
+`qrarv.py` can be used to run a multiwinner PR election, in the style of
+Bucklin Reweighted Voting, but with SME used as the method to find the winner
+of each seat.
