@@ -27,13 +27,14 @@ Benham originally claimed
 but has since dropped the claim of Mono-switch-plump, as it appears to be
 incompatible with the Condorcet criterion.
 
-Since the minimum Losing Votes metric can change, depending on what candidates
-are included, Benham also introduced a step to eliminate the lowest rated
-candidate after symmetric marginal pairwise sorting, which automatically gives
-the method Local Independence from Irrelevant Alternatives (LIIA), since
-successively eliminating the lowest pairwise sorted candidate ensures that the
-higher ranking result will be the same when lower ranked candidates are
-removed.
+Benham notes that without elimination, Simmon's sorted margins using Minimum
+Losing Votes might not be clone-independent, since the MinLV metric can change
+depending on which candidates are included.
+
+With elimination, we automatically get Local Independence from Irrelevant
+Alternatives (LIIA), since successively eliminating the lowest pairwise sorted
+candidate ensures that the higher ranking result will be the same when lower
+ranked candidates are removed.
 
 Benham gives three examples, provided here as `examples/benham1.csv`,
 `examples/benham2.csv`, and `examples/benham3.csv`, which demonstrate that
@@ -48,3 +49,5 @@ defeated by raising a lower-rated compromise candidate to equal top rank.
 `qrarv.py` can be used to run a multiwinner PR election, in the style of
 Bucklin Reweighted Voting, but with SME used as the method to find the winner
 of each seat.
+
+Both scripts require that the CSV inputfile be specified using the `-i` option.
