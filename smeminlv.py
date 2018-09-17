@@ -128,21 +128,28 @@ def sme_minlv(ballots, weight, cands,cnames=[]):
         lvsort = minlv[arglvsort]
         lvdiff = []
         outoforder = []
-        for i in range(1,ncands):
+        mindiffval = lvsort[0] - lvsort[ncands-1]
+        mindiff = ncands
+        # Loop backwards through the sorted array.
+        # The mindiff calculation then ensures that tied differences
+        # are resolved with preference to lower ranked pairs
+        for i in range(ncands-1,0,-1):
             im1 = i - 1
             c_i = arglvsort[i]
             c_im1 = arglvsort[i-1]
             if AA[c_i,c_im1] > AA[c_im1,c_i]:
-                outoforder.append(i-1)
+                outoforder.append(im1)
                 lvdiff.append(lvsort[im1] - lvsort[i])
+                if lvdiff[-1] < mindiffval:
+                    mindiff = im1
+                    mindiffval = lvdiff[-1]
 
         # terminate loop when no more pairs are out of order pairwise.
         if len(outoforder) == 0:
             break
 
         # find the minimum pairwise out of order pair, sorted by minimum losing votes
-        mindiff = outoforder[sorted(range(len(outoforder)),
-                                    key=lvdiff.__getitem__)[0]]
+        # mindiff = outoforder[sorted(range(len(outoforder)),key=lvdiff.__getitem__)[0]]
 
         if verbose:
             print("Swapping candidates {} and {} at location of minimum MinLV pairwise out-of-order difference".format(cnames[cands[arglvsort[mindiff]]],
