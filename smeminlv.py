@@ -152,8 +152,10 @@ def sme_minlv(ballots, weight, cands,cnames=[]):
         # mindiff = outoforder[sorted(range(len(outoforder)),key=lvdiff.__getitem__)[0]]
 
         if verbose:
-            print("Swapping candidates {} and {} at location of minimum MinLV pairwise out-of-order difference".format(cnames[cands[arglvsort[mindiff]]],
-                                                                      cnames[cands[arglvsort[mindiff+1]]]))
+            print(("Swapping candidates {} and {} "
+                   "at minimum pairwise out-of-order "
+                   "MinLV difference").format(cnames[cands[arglvsort[mindiff]]],
+                                              cnames[cands[arglvsort[mindiff+1]]]))
 
         # ... and swap their order
         arglvsort[range(mindiff,mindiff+2)] = arglvsort[range(mindiff+1,mindiff-1,-1)]
