@@ -94,7 +94,15 @@ def sme_minlv(ballots, weight, cands,cnames=[]):
             return(np.concatenate((sme_minlv(ballots, weight, cands_minus_c, cnames), cc)))
 
         if np.count_nonzero(rowLV) > 0:
-            scorelist.append(np.compress(rowLV>0,rowLV).min())
+            LVmin = np.compress(rowLV>0,rowLV).min()
+            scorelist.append(LVmin)
+            AAmin = rowAA.min()
+            if (verbose and ( LVmin != AAmin )):
+                print(("*** Candidate {} has different "
+                       "Minimum Pairwise Support ({}) than MinLV ({})").format(cnames[c],
+                                                                               AAmin,
+                                                                               LVmin))
+
         else:
             if np.count_nonzero(rowTV) == 0:
                 # Terminate recursion if we find a beats-all winner
@@ -103,8 +111,6 @@ def sme_minlv(ballots, weight, cands,cnames=[]):
                           [cnames[q] for q in cands_minus_c])
                 # Shortcut return
                 return(np.concatenate((cc, sme_minlv(ballots, weight, cands_minus_c, cnames))))
-                # Try to continue with winning votes
-                # scorelist.append(np.compress(rowWV>0,rowWV).min())
             else:
                 if verbose:
                     print("Candidate {} is tied with candidates".format(cnames[c]),
@@ -184,6 +190,24 @@ def test_sme(ballots,weight,cnames):
     winsort = sme_minlv(ballots,weight,cands,cnames)
     print("SME_MinLV ranking = ",
           " > ".join([cnames[winsort[k]] for k in range(numcands)]))
+
+    # Test whether LIIA is violated (i.e., if SME_MinLV with winner excluded
+    # is the same as the runner up from the full contest)
+
+    if numcands > 2:
+        winner, runnerup = winsort[0:2]
+
+        cands_minus_winner = np.compress(cands!=winner,cands)
+
+        newsort = sme_minlv(ballots,weight,cands_minus_winner)
+        newwinner = newsort[0]
+
+        if (newwinner != runnerup):
+            print(("*** LIIA violation found ***\n"
+                   "Winner with winner {} excluded: {}; "
+                   "original runner up: {}").format(cnames[winner],
+                                                    cnames[newwinner],
+                                                    cnames[runnerup]))
 
 def main():
     import argparse
