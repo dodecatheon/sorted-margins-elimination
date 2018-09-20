@@ -183,7 +183,7 @@ def test_sme(ballots,weight,cnames):
     cands = np.arange(numcands)
     winsort = sme_minlv(ballots,weight,cands,cnames)
     print("SME_MinLV ranking = ",
-          ",".join([cnames[winsort[k]] for k in range(numcands)]))
+          " > ".join([cnames[winsort[k]] for k in range(numcands)]))
 
 def main():
     import argparse
