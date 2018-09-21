@@ -34,7 +34,10 @@ def pairwise_erw(ballots, weight):
                                    np.where(ballot<=v,1,0))
     return(totalweight,numcands,A)
 
-def sme_minlv(ballots, weight, cands,cnames=[]):
+def mycompress(arr):
+    return(np.compress(arr>=0,arr))
+
+def sme_minlv(ballots, weight, cands,cnames=[],scalar=False):
     "Sorted Margins Elimination, MinLV (erw)"
     # erw = equal rated whole:
     # tied approval votes are counted as equal votes for each candidate
@@ -46,23 +49,35 @@ def sme_minlv(ballots, weight, cands,cnames=[]):
 
     # Terminate recursion at 1 or 2 candidates:
     if ncands == 1:
-        return(cands)
+        if scalar:
+            return(cands[0])
+        else:
+            return(cands)
 
     totalweight, numcands, AA = pairwise_erw(ballots[:,cands],weight)
 
     if ncands == 2:
         # Ties preserve input order
         if AA[1,0] > AA[0,1]:
-            return(cands[::-1])
+            if scalar:
+                return(cands[-1])
+            else:
+                return(cands[::-1])
         else:
-            return(cands)
+            if scalar:
+                return(cands[0])
+            else:
+                return(cands)
 
     # track the losing votes locations
-    losing_votes = np.where(AA.T > AA, AA, 0)
-    tied_votes = np.where(AA.T == AA, AA, 0)
-    wintie_votes = np.where(AA.T <= AA, AA, 0)
-    np.fill_diagonal(tied_votes,0)
-    np.fill_diagonal(wintie_votes,0)
+    losing_votes = np.where(AA.T > AA, AA, -1)
+    np.fill_diagonal(losing_votes,-1)
+
+    tied_votes = np.where(AA.T == AA, AA, -1)
+    np.fill_diagonal(tied_votes,-1)
+
+    wintie_votes = np.where(AA.T <= AA, AA, -1)
+    np.fill_diagonal(wintie_votes,-1)
 
     if verbose:
         print("----------")
@@ -86,15 +101,22 @@ def sme_minlv(ballots, weight, cands,cnames=[]):
         cc = np.array([c])
         cands_minus_c = np.compress(cands!=c,cands)
 
-        if np.count_nonzero(rowWT) == 0:
+        WTcompress = mycompress(rowWT)
+
+        if len(WTcompress) == 0:
             # shortcut return if we find a defeated-by-all loser:
             if verbose:
                 print("Candidate {} is defeated by all other candidates".format(cnames[c]),
                       [cnames[q] for q in cands_minus_c])
-            return(np.concatenate((sme_minlv(ballots, weight, cands_minus_c, cnames), cc)))
+            if scalar:
+                return(sme_minlv(ballots, weight, cands_minus_c, cnames, scalar))
+            else:
+                return(np.concatenate((sme_minlv(ballots, weight, cands_minus_c, cnames), cc)))
 
-        if np.count_nonzero(rowLV) > 0:
-            LVmin = np.compress(rowLV>0,rowLV).min()
+        LVcompress = mycompress(rowLV)
+
+        if len(LVcompress) > 0:
+            LVmin = LVcompress.min()
             scorelist.append(LVmin)
             AAmin = rowAA.min()
             if (verbose and ( LVmin != AAmin )):
@@ -102,20 +124,22 @@ def sme_minlv(ballots, weight, cands,cnames=[]):
                        "Minimum Pairwise Support ({}) than MinLV ({})").format(cnames[c],
                                                                                AAmin,
                                                                                LVmin))
-
         else:
-            if np.count_nonzero(rowTV) == 0:
+            if len(mycompress(rowTV)) == 0:
                 # Terminate recursion if we find a beats-all winner
                 if verbose:
                     print("Candidate {} defeats all candidates".format(cnames[c]),
                           [cnames[q] for q in cands_minus_c])
                 # Shortcut return
-                return(np.concatenate((cc, sme_minlv(ballots, weight, cands_minus_c, cnames))))
+                if scalar:
+                    return(c)
+                else:
+                    return(np.concatenate((cc, sme_minlv(ballots, weight, cands_minus_c, cnames))))
             else:
                 if verbose:
                     print("Candidate {} is tied with candidates".format(cnames[c]),
-                          [cnames[q] for q in np.compress(rowTV>0,cands)])
-                scorelist.append(np.compress(rowWT>0,rowWT).min())
+                          [cnames[q] for q in np.compress(rowTV>=0,cands)])
+                scorelist.append(WTcompress.min())
                 # return(False)
 
     # convert scorelist to np.array:
@@ -151,7 +175,7 @@ def sme_minlv(ballots, weight, cands,cnames=[]):
                     mindiffval = lvdiff[-1]
 
         # terminate loop when no more pairs are out of order pairwise.
-        if len(outoforder) == 0:
+        if (len(outoforder) == 0) or (mindiff == ncands):
             break
 
         # find the minimum pairwise out of order pair, sorted by minimum losing votes
@@ -170,7 +194,10 @@ def sme_minlv(ballots, weight, cands,cnames=[]):
 
     # We can terminate recursion here if ncands == 3
     if ncands == 3:
-        return(cands[arglvsort])
+        if scalar:
+            return(cands[arglvsort[0]])
+        else:
+            return(cands[arglvsort])
 
     # Once the array is sorted, eliminate the last candidate and run again
     # on the remaining candidates recursively
@@ -178,36 +205,46 @@ def sme_minlv(ballots, weight, cands,cnames=[]):
         print("Eliminating lowest-ordered candidate {}".format(cnames[cands[arglvsort[-1]]]))
         print("Running sme_minlv on candidates", [cnames[q] for q in cands[arglvsort[:-1]]])
 
-    return(np.concatenate((sme_minlv(ballots,
-                                     weight,
-                                     cands[arglvsort[:-1]],
-                                     cnames),
-                           cands[[arglvsort[-1]]])))
+    if scalar:
+        return(sme_minlv(ballots,weight,cands[arglvsort[:-1]],cnames,scalar))
+    else:
+        return(np.concatenate((sme_minlv(ballots,
+                                         weight,
+                                         cands[arglvsort[:-1]],
+                                         cnames),
+                               cands[[arglvsort[-1]]])))
 
-def test_sme(ballots,weight,cnames):
+def test_sme(ballots,weight,cnames,scalar=False):
     numcands = np.shape(ballots)[1]
     cands = np.arange(numcands)
-    winsort = sme_minlv(ballots,weight,cands,cnames)
-    print("SME_MinLV ranking = ",
-          " > ".join([cnames[winsort[k]] for k in range(numcands)]))
+    if scalar:
+        print("SME_MinLV winner =", cnames[sme_minlv(ballots,
+                                                     weight,
+                                                     cands,
+                                                     cnames,
+                                                     scalar=scalar)])
+    else:
+        winsort = sme_minlv(ballots,weight,cands,cnames)
+        print("SME_MinLV ranking = ",
+              " > ".join([cnames[winsort[k]] for k in range(numcands)]))
 
-    # Test whether LIIA is violated (i.e., if SME_MinLV with winner excluded
-    # is the same as the runner up from the full contest)
+        # Test whether LIIA is violated (i.e., if SME_MinLV with winner excluded
+        # is the same as the runner up from the full contest)
 
-    if numcands > 2:
-        winner, runnerup = winsort[0:2]
+        if numcands > 2:
+            winner, runnerup = winsort[0:2]
 
-        cands_minus_winner = np.compress(cands!=winner,cands)
+            cands_minus_winner = np.compress(cands!=winner,cands)
 
-        newsort = sme_minlv(ballots,weight,cands_minus_winner)
-        newwinner = newsort[0]
+            newsort = sme_minlv(ballots,weight,cands_minus_winner)
+            newwinner = newsort[0]
 
-        if (newwinner != runnerup):
-            print(("*** LIIA violation found ***\n"
-                   "Winner with winner {} excluded: {}; "
-                   "original runner up: {}").format(cnames[winner],
-                                                    cnames[newwinner],
-                                                    cnames[runnerup]))
+            if (newwinner != runnerup):
+                print(("*** Potential LIIA violation found ***\n"
+                       "Winner with winner {} excluded: {}; "
+                       "original runner up: {}").format(cnames[winner],
+                                                        cnames[newwinner],
+                                                        cnames[runnerup]))
 
 def main():
     import argparse
@@ -217,6 +254,10 @@ def main():
                         type=str,
                         required=True,
                         help="REQUIRED: CSV Input file [default: none]")
+    parser.add_argument("-w", "--winneronly",
+                        action='store_true',
+                        default=False,
+                        help="Calculate winner-only, no ranking [default: False]")
 
     args = parser.parse_args()
 
@@ -229,7 +270,7 @@ def main():
     for ballot, w in zip(ballots,weight):
         print(ff.format(w),ballot)
 
-    test_sme(ballots,weight,cnames)
+    test_sme(ballots,weight,cnames,scalar=args.winneronly)
 
 if __name__ == "__main__":
     main()
