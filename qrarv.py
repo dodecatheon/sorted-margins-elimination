@@ -3,8 +3,8 @@
 qrarv -- Quota-based Ranked Approval Reweighted Voting --\n\n
 
 Given a CSV file of weighted score ballots, seat M winners with
-proportional representation, using Sorted Margins Elimination to determine the winner
-of each seat.
+proportional representation, using Sorted Margins Elimination to
+determine the winner of each seat.
 """
 from csvtoballots import csvtoballots
 from smeminlv import sme_minlv
@@ -49,7 +49,7 @@ def qrarv(ballots, weights, cnames, numseats, quotafunction):
 
         # Determine the seat winner using sorted margins elimination:
         # Seat the winner, then eliminate from candidates for next count
-        winner = sme_minlv(ballots,weights,cands)[0]
+        winner = sme_minlv(ballots,weights,cands,scalar=True)
         winners += [winner]
         cands = np.compress(cands != winner,cands)
 

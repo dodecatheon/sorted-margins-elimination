@@ -64,6 +64,9 @@ def sme_minlv(ballots, weight, cands,cnames=[],scalar=False):
             else:
                 return(cands[::-1])
         else:
+            if verbose and (AA[0,1] == AA[1,0]):
+                print("Candidates {} and {} are tied".format(cnames[cands[0]],
+                                                             cnames[cands[1]]))
             if scalar:
                 return(cands[0])
             else:
