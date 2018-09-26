@@ -197,6 +197,10 @@ def sme_minlv(ballots, weight, cands,cnames=[],scalar=False):
 
     # We can terminate recursion here if ncands == 3
     if ncands == 3:
+        winner, runnerup = arglvsort[:2]
+        if verbose and (AA[winner,runnerup] == AA[runnerup,winner]):
+            print("Candidates {} and {} are tied".format(cnames[cands[winner]],
+                                                         cnames[cands[runnerup]]))
         if scalar:
             return(cands[arglvsort[0]])
         else:
