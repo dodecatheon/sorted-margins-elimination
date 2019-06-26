@@ -219,7 +219,7 @@ def sme_minlv(ballots, weight, cands,cnames=[],scalar=False):
                                          weight,
                                          cands[arglvsort[:-1]],
                                          cnames),
-                               cands[[arglvsort[-1]]])))
+                               cands[[arglvsort[-2]]])))
 
 def test_sme(ballots,weight,cnames,scalar=False):
     numcands = np.shape(ballots)[1]
