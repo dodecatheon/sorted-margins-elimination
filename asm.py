@@ -25,10 +25,40 @@ def smith_from_losses(losses,cands):
                 queue.append(d)
     return(smith)
 
+# Performs sorted margins using a generic metric seed, based on a loss_array like A.T > A
+def sorted_margins(ranking,metric,loss_array):
+    nswaps = 0
+    # Loop until no pairs are out of order pairwise
+    n = len(ranking)
+    ncands = len(metric)
+    maxdiff = metric.max() - metric.min() + 1
+    while True:
+        apprsort = metric[ranking]
+        apprdiff = []
+        outoforder = []
+        mindiffval = maxdiff
+        mindiff = ncands
+        for i in range(1,n):
+            im1 = i - 1
+            c_i = ranking[i]
+            c_im1 = ranking[im1]
+            if (loss_array[c_im1,c_i]):
+                outoforder.append(im1)
+                apprdiff.append(apprsort[im1] - apprsort[i])
+                if apprdiff[-1] < mindiffval:
+                    mindiff = im1
+                    mindiffval = apprdiff[-1]
+        # terminate when no more pairs are out of order pairwise:
+        if (len(outoforder) == 0) or (mindiff == ncands):
+            break
+
+        # Do the swap
+        nswaps += 1
+        ranking[range(mindiff,mindiff+2)] = ranking[range(mindiff+1,mindiff-1,-1)]
+    return nswaps
+
 def asm(ballots, weight, cutoff=None):
-    """T Sorted Margins, using Chris Benham's IBIFA to determine
-    the natural approval threshold.
-    """
+    "Approval Sorted Margins"
 
     nballots, ncands = np.shape(ballots)
     cands = np.arange(ncands)
@@ -40,6 +70,7 @@ def asm(ballots, weight, cutoff=None):
     if cutoff == None:
         cutoff = maxscore // 2
 
+    minapprove = cutoff + 1
     # ----------------------------------------------------------------------
     # Tabulation:
     # ----------------------------------------------------------------------
@@ -50,10 +81,10 @@ def asm(ballots, weight, cutoff=None):
     B = np.zeros((ncands,ncands))
     T = np.zeros((ncands))
     for ballot, w in zip(ballots,weight):
-        for r in range(maxscore,0,-1):
+        for r in range(1,maxscorep1):
             A += np.multiply.outer(np.where(ballot==r,w,0),
                                    np.where(ballot<r ,1,0))
-        for r in range(maxscore,cutoff,-1):
+        for r in range(minapprove,maxscorep1):
             B += np.multiply.outer(np.where(ballot==r,w,0),
                                    np.where(ballot<r ,1,0))
             T += np.where(ballot==r,w,0)
@@ -73,30 +104,7 @@ def asm(ballots, weight, cutoff=None):
     ranking = np.array([c for c in T.argsort()[::-1] if c in smith])
     branking = np.array([c for c in T.argsort()[::-1] if c in bsmith])
 
-    # Loop until no pairs are out of order pairwise
-    maxdiff = T.max() - T.min() + 1
-    while True:
-        apprsort = T[ranking]
-        apprdiff = []
-        outoforder = []
-        mindiffval = maxdiff
-        mindiff = ncands
-        for i in range(1,nsmith):
-            im1 = i - 1
-            c_i = ranking[i]
-            c_im1 = ranking[im1]
-            if (A[c_i,c_im1] > A[c_im1,c_i]):
-                outoforder.append(im1)
-                apprdiff.append(apprsort[im1] - apprsort[i])
-                if apprdiff[-1] < mindiffval:
-                    mindiff = im1
-                    mindiffval = apprdiff[-1]
-        # terminate when no more pairs are out of order pairwise:
-        if (len(outoforder) == 0) or (mindiff == ncands):
-            break
-
-        # Do the swap
-        ranking[range(mindiff,mindiff+2)] = ranking[range(mindiff+1,mindiff-1,-1)]
+    nswaps = sorted_margins(ranking,T,(A.T > A))
 
     winner = ranking[0]
 
@@ -132,7 +140,7 @@ def test_asm(ballots,weight,cnames,cutoff=None):
     print("\t{}".format(' > '.join([cnames[c] for c in branking])))
 
     if nsmith > 1:
-        print("\nApproval Sorted Margins pairwise results:")
+        print("\nApproval Sorted Margins pairwise results (on Smith Set):")
         for i in range(1,nsmith):
             im1 = i - 1
             c_i = ranking[i]
@@ -162,6 +170,21 @@ def test_asm(ballots,weight,cnames,cutoff=None):
     print("\nSmith//Approval Winner: ", cnames[sawinner])
 
     print("-----\n")
+    # Also print out non-Smith pairwise
+    full_ranking = T.argsort()[::-1]
+    nswaps = sorted_margins(full_ranking,T,(A.T > A))
+    print("All candidates, ranked by Approval Sorted Margins:")
+    print("\t{}".format(' > '.join([cnames[c] for c in full_ranking])))
+    print("\nApproval Sorted Margins pairwise results for all candidates:")
+    for i in range(1,ncands):
+        im1 = i - 1
+        c_i = full_ranking[i]
+        c_im1 = full_ranking[im1]
+        cname_i = cnames[c_i]
+        cname_im1 = cnames[c_im1]
+        print("\t{}>{}: {} > {}".format(cname_im1,cname_i,A[c_im1,c_i],A[c_i,c_im1]))
+    print("-----")
+
     return
 
 def main():
