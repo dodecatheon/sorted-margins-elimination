@@ -174,7 +174,7 @@ def smithrr(ballots, weight):
 
         if len(remaining) > 0:
             r -= 1
-            # checkQ(r,s,TG,MX[r],remaining,ratings,ranking)
+            checkQ(r,s,TG,MX[r],remaining,ratings,ranking)
             # Note that this terminates when r == 0, since MX[0] is a list of zeros
             # by construction
 
